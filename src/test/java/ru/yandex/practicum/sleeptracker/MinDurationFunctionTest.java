@@ -32,4 +32,9 @@ class MinDurationFunctionTest {
 
         assertEquals(480L, function.apply(sessions).getValue());
     }
+
+    @Test
+    void returnsZeroForEmptyList() {
+        assertEquals(0L, function.apply(List.of()).getValue());
+    }
 }

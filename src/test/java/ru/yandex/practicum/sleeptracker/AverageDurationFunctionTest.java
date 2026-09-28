@@ -32,4 +32,9 @@ class AverageDurationFunctionTest {
 
         assertEquals(480.0, (double) function.apply(sessions).getValue(), 0.001);
     }
+
+    @Test
+    void returnsZeroForEmptyList() {
+        assertEquals(0.0, function.apply(List.of()).getValue(), 0.001);
+    }
 }

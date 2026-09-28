@@ -9,22 +9,21 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class ChronotypeFunction implements Function<List<SleepingSession>, SleepAnalysisResult> {
+public class ChronotypeFunction implements Function<List<SleepingSession>, SleepAnalysisResult<Chronotype>> {
 
-    private static final LocalTime NIGHT_WINDOW_END = LocalTime.of(6, 0);
     private static final LocalTime OWL_START_AFTER = LocalTime.of(23, 0);
     private static final LocalTime OWL_END_AFTER = LocalTime.of(9, 0);
     private static final LocalTime LARK_START_BEFORE = LocalTime.of(22, 0);
     private static final LocalTime LARK_END_BEFORE = LocalTime.of(7, 0);
 
     @Override
-    public SleepAnalysisResult apply(List<SleepingSession> sessions) {
+    public SleepAnalysisResult<Chronotype> apply(List<SleepingSession> sessions) {
         Map<LocalDate, List<SleepingSession>> sessionsByNight = sessions.stream()
-                .filter(this::isNightSession)
-                .collect(Collectors.groupingBy(this::nightDateOf));
+                .filter(NightUtils::isNightSession)
+                .collect(Collectors.groupingBy(NightUtils::nightDateOf));
 
-        Map<Chronotype, Long> counts = sessionsByNight.values().stream()
-                .map(this::classifyNight)
+        Map<Chronotype, Long> counts = sessionsByNight.entrySet().stream()
+                .map(entry -> classifyNight(entry.getKey(), entry.getValue()))
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
 
         Chronotype chronotype = counts.entrySet().stream()
@@ -33,23 +32,10 @@ public class ChronotypeFunction implements Function<List<SleepingSession>, Sleep
                 .map(Map.Entry::getKey)
                 .orElse(Chronotype.DOVE);
 
-        return new SleepAnalysisResult("Хронотип пользователя: ", chronotype);
+        return new SleepAnalysisResult<>("Хронотип пользователя: ", chronotype);
     }
 
-    private boolean isNightSession(SleepingSession session) {
-        boolean crossesMidnight = !session.getStartSleep().toLocalDate()
-                .equals(session.getEndSleep().toLocalDate());
-        boolean startsBeforeSix = session.getStartSleep().toLocalTime().isBefore(NIGHT_WINDOW_END);
-        return crossesMidnight || startsBeforeSix;
-    }
-
-    private LocalDate nightDateOf(SleepingSession session) {
-        boolean crossesMidnight = !session.getStartSleep().toLocalDate()
-                .equals(session.getEndSleep().toLocalDate());
-        return crossesMidnight ? session.getEndSleep().toLocalDate() : session.getStartSleep().toLocalDate();
-    }
-
-    private Chronotype classifyNight(List<SleepingSession> nightSessions) {
+    private Chronotype classifyNight(LocalDate nightDate, List<SleepingSession> nightSessions) {
         LocalDateTime earliestStart = nightSessions.stream()
                 .map(SleepingSession::getStartSleep)
                 .min(LocalDateTime::compareTo)
@@ -59,13 +45,15 @@ public class ChronotypeFunction implements Function<List<SleepingSession>, Sleep
                 .max(LocalDateTime::compareTo)
                 .orElseThrow();
 
-        LocalTime start = earliestStart.toLocalTime();
-        LocalTime end = latestEnd.toLocalTime();
+        LocalDateTime owlStartThreshold = nightDate.minusDays(1).atTime(OWL_START_AFTER);
+        LocalDateTime owlEndThreshold = nightDate.atTime(OWL_END_AFTER);
+        LocalDateTime larkStartThreshold = nightDate.minusDays(1).atTime(LARK_START_BEFORE);
+        LocalDateTime larkEndThreshold = nightDate.atTime(LARK_END_BEFORE);
 
-        if (start.isAfter(OWL_START_AFTER) && end.isAfter(OWL_END_AFTER)) {
+        if (earliestStart.isAfter(owlStartThreshold) && latestEnd.isAfter(owlEndThreshold)) {
             return Chronotype.OWL;
         }
-        if (start.isBefore(LARK_START_BEFORE) && end.isBefore(LARK_END_BEFORE)) {
+        if (earliestStart.isBefore(larkStartThreshold) && latestEnd.isBefore(larkEndThreshold)) {
             return Chronotype.LARK;
         }
         return Chronotype.DOVE;

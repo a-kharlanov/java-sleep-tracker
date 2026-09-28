@@ -84,4 +84,49 @@ class ChronotypeFunctionTest {
 
         assertEquals(Chronotype.OWL, function.apply(sessions).getValue());
     }
+
+    @Test
+    void returnsDoveForEmptyList() {
+        assertEquals(Chronotype.DOVE, function.apply(List.of()).getValue());
+    }
+
+    @Test
+    void exactlyElevenPmIsNotOwl() {
+        List<SleepingSession> sessions = List.of(
+                new SleepingSession(LocalDateTime.of(2025, 10, 1, 23, 0),
+                        LocalDateTime.of(2025, 10, 2, 9, 30), SleepQuality.GOOD)
+        );
+
+        assertEquals(Chronotype.DOVE, function.apply(sessions).getValue());
+    }
+
+    @Test
+    void exactlyTenPmIsNotLark() {
+        List<SleepingSession> sessions = List.of(
+                new SleepingSession(LocalDateTime.of(2025, 10, 1, 22, 0),
+                        LocalDateTime.of(2025, 10, 2, 6, 30), SleepQuality.GOOD)
+        );
+
+        assertEquals(Chronotype.DOVE, function.apply(sessions).getValue());
+    }
+
+    @Test
+    void fallingAsleepJustAfterMidnightIsNotLark() {
+        List<SleepingSession> sessions = List.of(
+                new SleepingSession(LocalDateTime.of(2025, 10, 5, 0, 10),
+                        LocalDateTime.of(2025, 10, 5, 6, 20), SleepQuality.GOOD)
+        );
+
+        assertEquals(Chronotype.DOVE, function.apply(sessions).getValue());
+    }
+
+    @Test
+    void lateNightSleepCrossingMidnightIsCorrectlyClassifiedAsOwl() {
+        List<SleepingSession> sessions = List.of(
+                new SleepingSession(LocalDateTime.of(2025, 10, 5, 0, 30),
+                        LocalDateTime.of(2025, 10, 5, 9, 30), SleepQuality.GOOD)
+        );
+
+        assertEquals(Chronotype.OWL, function.apply(sessions).getValue());
+    }
 }

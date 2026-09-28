@@ -82,4 +82,9 @@ class SleeplessNightsFunctionTest {
 
         assertEquals(31L, function.apply(sessions).getValue());
     }
+
+    @Test
+    void returnsZeroForEmptyList() {
+        assertEquals(0L, function.apply(List.of()).getValue());
+    }
 }
